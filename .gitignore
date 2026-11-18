@@ -2,3 +2,4 @@
 /apps/*
 /example/*
 file_chunker
+.env
