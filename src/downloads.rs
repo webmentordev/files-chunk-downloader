@@ -5,7 +5,6 @@ use uuid::Uuid;
 
 pub async fn get_manifest(Path(app_uuid): Path<Uuid>) -> impl IntoResponse {
     let dir = format!("./apps/{app_uuid}");
-    let manifest = format!("./apps/{app_id}/manifest.json");
 
     match fs::try_exists(&dir).await {
         Ok(true) => (
