@@ -32,6 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(health_check))
         .route("/convert", post(chunk_func))
         .route("/upload", post(upload_file))
+        .route("/chunk/upload", post(chunk_uploads))
         .route("/manifest/{app}", post(get_manifest))
         .route("/manifest/{app}/{chunk}", post(get_chunk))
         .layer(DefaultBodyLimit::disable());
