@@ -30,6 +30,7 @@ pub struct Manifest {
 const CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
 // Worked great with 4.2GB Lord of the rings upload, No RAM spikes.
+// This support multiple files upload but let's be specific
 pub async fn chunk_uploads(
     mut multipart: Multipart,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
@@ -149,7 +150,7 @@ pub async fn upload_file(
         .await
         .map_err(|err| (StatusCode::BAD_REQUEST, err.to_string()))?
     {
-        let _name = field.name().unwrap_or("file").to_string();
+        let name = field.name().unwrap_or("file").to_string();
         let file_name = field.file_name().unwrap_or("upload.bin").to_string();
 
         let path = format!("./example/{}", file_name);

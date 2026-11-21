@@ -1,5 +1,6 @@
 mod chunker;
 mod downloads;
+mod multiple_uploads;
 mod uploads;
 
 use axum::{
@@ -12,6 +13,7 @@ use axum::{
 use chunker::*;
 use dotenvy;
 use downloads::*;
+use multiple_uploads::*;
 use serde_json::json;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
@@ -33,6 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/convert", post(chunk_func))
         .route("/upload", post(upload_file))
         .route("/chunk/upload", post(chunk_uploads))
+        .route("/multiple/chunk/upload", post(multiple_uploads))
         .route("/manifest/{app}", post(get_manifest))
         .route("/manifest/{app}/{chunk}", post(get_chunk))
         .layer(DefaultBodyLimit::disable());
