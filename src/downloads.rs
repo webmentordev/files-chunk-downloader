@@ -1,7 +1,32 @@
-use axum::{Json, extract::Path, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json,
+    body::Body,
+    extract::Path,
+    http::{StatusCode, header},
+    response::IntoResponse,
+};
 use serde_json::json;
-use tokio::fs;
+use tokio::fs::{self, File};
+use tokio_util::io::ReaderStream;
 use uuid::Uuid;
+
+pub async fn download_original() -> Result<impl IntoResponse, (StatusCode, String)> {
+    let file = File::open("./uploads/electronics.pdf")
+        .await
+        .map_err(|err| (StatusCode::NOT_FOUND, err.to_string()))?;
+
+    let stream = ReaderStream::new(file);
+    let body = Body::from_stream(stream);
+
+    let headers = [
+        (header::CONTENT_TYPE, "application/pdf"),
+        (
+            header::CONTENT_DISPOSITION,
+            "attachment; filename=\"Electronics-book.pdf\"",
+        ),
+    ];
+    Ok((headers, body))
+}
 
 pub async fn get_manifest(Path(app_uuid): Path<Uuid>) -> impl IntoResponse {
     let dir = format!("./apps/{app_uuid}");

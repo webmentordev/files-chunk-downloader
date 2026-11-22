@@ -4,3 +4,5 @@
 /uploads
 file_chunker
 .env
+*.db
+*.sqlite

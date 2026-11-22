@@ -38,6 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/multiple/chunk/upload", post(multiple_uploads))
         .route("/manifest/{app}", post(get_manifest))
         .route("/manifest/{app}/{chunk}", post(get_chunk))
+        .route("/download-original", get(download_original))
         .layer(DefaultBodyLimit::disable());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
