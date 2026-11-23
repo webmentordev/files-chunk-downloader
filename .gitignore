@@ -6,3 +6,5 @@ file_chunker
 .env
 *.db
 *.sqlite
+*-shm
+*-wal

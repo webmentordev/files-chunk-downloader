@@ -3,6 +3,7 @@ mod downloads;
 mod multiple_uploads;
 mod uploads;
 
+use anyhow;
 use axum::{
     Json, Router,
     extract::DefaultBodyLimit,
@@ -15,13 +16,39 @@ use dotenvy;
 use downloads::*;
 use multiple_uploads::*;
 use serde_json::json;
-use std::net::SocketAddr;
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool};
+use std::{net::SocketAddr, str::FromStr, time::Duration};
 use tokio::net::TcpListener;
 use uploads::*;
 
+#[derive(Clone)]
+struct AppState {
+    db: SqlitePool,
+}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), anyhow::Error> {
     dotenvy::dotenv().ok();
+
+    let conn = SqliteConnectOptions::from_str("sqlite:apps.db")?
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .busy_timeout(Duration::from_secs(5));
+    let pool = SqlitePool::connect_with(conn).await?;
+    let state = AppState { db: pool.clone() };
+
+    sqlx::query(
+        r#"CREATE TABLE IF NOT EXISTS apps (
+            id TEXT PRIMARY KEY NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            file_name TEXT NOT NULL,
+            version VARCHAR(255) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            update_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );"#,
+    )
+    .execute(&pool)
+    .await?;
 
     // use later
     // let vars: Vec<String> = std::env::args().collect();
@@ -39,7 +66,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/manifest/{app}", post(get_manifest))
         .route("/manifest/{app}/{chunk}", post(get_chunk))
         .route("/download-original", get(download_original))
-        .layer(DefaultBodyLimit::disable());
+        .layer(DefaultBodyLimit::disable())
+        .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     let listener = TcpListener::bind(addr).await?;

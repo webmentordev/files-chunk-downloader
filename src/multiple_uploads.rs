@@ -1,7 +1,13 @@
-use axum::{Json, extract::Multipart, http::StatusCode, response::IntoResponse};
+use axum::{
+    Json,
+    extract::{Multipart, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use futures_util::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use sqlx::SqlitePool;
 use std::io;
 use std::path::Path;
 use std::time::Instant;
@@ -11,6 +17,8 @@ use tokio::{
 };
 use tokio_util::io::StreamReader;
 use uuid::Uuid;
+
+use crate::AppState;
 
 #[derive(Serialize, Deserialize)]
 pub struct Chunk {
@@ -49,7 +57,10 @@ fn bad_request(e: impl ToString) -> ApiError {
     (StatusCode::BAD_REQUEST, e.to_string())
 }
 
-pub async fn multiple_uploads(mut multipart: Multipart) -> Result<impl IntoResponse, ApiError> {
+pub async fn multiple_uploads(
+    state: State<AppState>,
+    mut multipart: Multipart,
+) -> Result<impl IntoResponse, ApiError> {
     let start = Instant::now();
     let mut uploaded: Vec<UploadedFile> = Vec::new();
 
@@ -59,7 +70,7 @@ pub async fn multiple_uploads(mut multipart: Multipart) -> Result<impl IntoRespo
             _ => continue,
         }
 
-        uploaded.push(process_file(field).await?);
+        uploaded.push(process_file(field, &state.db).await?);
     }
 
     if uploaded.is_empty() {
@@ -77,6 +88,7 @@ pub async fn multiple_uploads(mut multipart: Multipart) -> Result<impl IntoRespo
 
 async fn process_file(
     field: axum::extract::multipart::Field<'_>,
+    db: &SqlitePool,
 ) -> Result<UploadedFile, ApiError> {
     let file_start = Instant::now();
 
@@ -148,6 +160,18 @@ async fn process_file(
     let manifest_path = format!("{}/manifest.json", dir);
     let json = serde_json::to_string_pretty(&manifest).map_err(internal)?;
     fs::write(&manifest_path, json).await.map_err(internal)?;
+
+    sqlx::query("INSERT into apps (id, name, file_name, version) VALUES (?, ?, ?, ?)")
+        .bind(app_id.to_string())
+        .bind(&safe_name)
+        .bind(&upload)
+        .bind("0.1")
+        .execute(db)
+        .await
+        .map_err(|e| {
+            eprintln!("insert failed: {e}");
+            internal(e)
+        })?;
 
     Ok(UploadedFile {
         app_id: app_id.to_string(),

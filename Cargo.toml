@@ -15,3 +15,9 @@ dotenvy = "0.15.7"
 anyhow = "1"
 bytes = "1"
 futures-util = "0.3.34"
+sqlx = { version = "0.9", features = [
+    "macros",
+    "runtime-tokio",
+    "uuid",
+    "sqlite",
+] }
