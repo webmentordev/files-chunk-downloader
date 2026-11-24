@@ -1,9 +1,11 @@
+mod apps;
 mod chunker;
 mod downloads;
 mod multiple_uploads;
 mod uploads;
 
 use anyhow;
+use apps::*;
 use axum::{
     Json, Router,
     extract::DefaultBodyLimit,
@@ -59,11 +61,13 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let app = Router::new()
         .route("/health", get(health_check))
+        .route("/apps", get(get_apps))
         .route("/convert", post(chunk_func))
         .route("/upload", post(upload_file))
         .route("/chunk/upload", post(chunk_uploads))
         .route("/multiple/chunk/upload", post(multiple_uploads))
         .route("/manifest/{app}", post(get_manifest))
+        .route("/save/manifest/{app}", get(save_manifest))
         .route("/manifest/{app}/{chunk}", post(get_chunk))
         .route("/download-original", get(download_original))
         .layer(DefaultBodyLimit::disable())
