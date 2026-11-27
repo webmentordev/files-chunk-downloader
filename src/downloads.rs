@@ -67,11 +67,34 @@ pub async fn save_manifest(
     Ok((headers, body))
 }
 
-pub async fn get_chunk(Path((app_uuid, chunk_uuid)): Path<(Uuid, Uuid)>) -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        Json(
-            json!({ "message": "Downloaded chunk!", "app_id": app_uuid.to_string(), "chunk_id": chunk_uuid.to_string() }),
+pub async fn get_chunk(
+    Path((app_uuid, chunk_uuid)): Path<(Uuid, Uuid)>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let file_path = format!("./apps/{}/{}.chunk", &app_uuid, &chunk_uuid);
+    let data = fs::read(&file_path).await.map_err(|err| {
+        if err.kind() == std::io::ErrorKind::NotFound {
+            (StatusCode::NOT_FOUND, "chunk not found".to_string())
+        } else {
+            (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+        }
+    })?;
+
+    let (data, hash) = tokio::task::spawn_blocking(move || {
+        let hash = blake3::hash(&data).to_hex().to_string();
+        (data, hash)
+    })
+    .await
+    .map_err(|err| (StatusCode::INTERNAL_SERVER_ERROR, err.to_string()))?;
+
+    let headers = [
+        (header::CONTENT_TYPE, "application/octet-stream".to_string()),
+        (
+            header::CONTENT_DISPOSITION,
+            format!("attachment; filename=\"{}.chunk\"", chunk_uuid),
         ),
-    )
+        (header::ETAG, format!("\"{}\"", hash)),
+        (header::HeaderName::from_static("x-blake3-hash"), hash),
+    ];
+
+    Ok((headers, data))
 }
