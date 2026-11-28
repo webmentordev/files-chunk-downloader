@@ -1,5 +1,6 @@
 mod apps;
 mod chunker;
+mod client;
 mod downloads;
 mod multiple_uploads;
 mod uploads;
@@ -26,18 +27,24 @@ use uploads::*;
 #[derive(Clone)]
 struct AppState {
     db: SqlitePool,
+    server_domain: String,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     dotenvy::dotenv().ok();
 
+    let server_domain = std::env::var("SERVER_DOMAIN").expect("SERVER_DOMAIN is not provided");
+
     let conn = SqliteConnectOptions::from_str("sqlite:apps.db")?
         .create_if_missing(true)
         .journal_mode(SqliteJournalMode::Wal)
         .busy_timeout(Duration::from_secs(5));
     let pool = SqlitePool::connect_with(conn).await?;
-    let state = AppState { db: pool.clone() };
+    let state = AppState {
+        db: pool.clone(),
+        server_domain: server_domain.clone(),
+    };
 
     sqlx::query(
         r#"CREATE TABLE IF NOT EXISTS apps (
@@ -58,6 +65,7 @@ async fn main() -> Result<(), anyhow::Error> {
         match argument {
             "client" => {
                 println!("Client connected!");
+                client::connect_to_client(server_domain).await?;
                 return Ok(());
             }
             "serve" => {

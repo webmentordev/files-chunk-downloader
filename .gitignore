@@ -1,6 +1,7 @@
 /target
 /apps/*
 /example/*
+/downloads/*
 /uploads
 file_chunker
 .env
